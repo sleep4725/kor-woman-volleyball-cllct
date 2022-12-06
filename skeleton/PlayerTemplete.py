@@ -6,7 +6,8 @@ class PlayerTemplate:
   player_number: int
   player_position: str
   player_detail_url: str
-  player_height: int 
+  player_height: float
   player_birthday: dict
   player_school: list 
   player_img_path: str
+  player_team_name: str

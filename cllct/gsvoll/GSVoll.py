@@ -9,9 +9,12 @@ import urllib.request
 from urllib import parse
 from bs4 import BeautifulSoup
 import bs4
+from elasticsearch import Elasticsearch
 from dataclasses import asdict
+
 try:
 
+  from es.EsClient import EsClient
   from common.EsCommon import EsCommon
   from skeleton.Template import Template
   from skeleton.PlayerTemplete import PlayerTemplate
@@ -25,14 +28,16 @@ except ImportError as err:
 '''
 class GSVoll(Template, EsCommon):
   
-  def __init__(self) -> None:
+  def __init__(self, deploy: str) -> None:
     global PROJ_ROOT_DIR 
     EsCommon.__init__(self)
-    
+    self._es_client: Elasticsearch = EsClient.get_es_client(deploy=deploy)
+
     self._char_delimiters = "년", "월", "일"
     self._regex_pattern = "|".join(map(re.escape, self._char_delimiters))
 
     self._flag: str = "gsv"
+    self._team_name: str = "지에스칼텍스"
     self._base_url: str = "https://www.gsvolleyball.com"
     self._url_path: str = "/team/player"
     self._player_url_list: list[str] = list() 
@@ -67,11 +72,12 @@ class GSVoll(Template, EsCommon):
 
         player_info = asdict(
             PlayerTemplate(
-              player_name= "", 
+              player_name= "",
+              player_team_name=self._team_name,
               player_number= 0,
               player_position= "",
               player_detail_url= None,
-              player_height= 0,
+              player_height= .0,
               player_birthday= {
                 "year": None
                 ,"month": None
@@ -126,7 +132,7 @@ class GSVoll(Template, EsCommon):
               player_school:list[str] = [sch for sch in v.split("-") if sch]
               player_info["player_school"].extend(player_school)
             elif k == "신장":
-              v = int(str(dl.select_one("dd").text).rstrip("cm"))
+              v = float(str(dl.select_one("dd").text).rstrip("cm"))
               player_info["player_height"] += v
           
           # ==============================================================================
@@ -150,12 +156,27 @@ class GSVoll(Template, EsCommon):
             player_info["player_img_path"] += img_file_path
           # ==============================================================================
           print(player_info)
-
+          self._es_action.append(
+            {
+              "_index": self._es_index
+              , "_source": player_info
+            }
+          )
         else:
           ''''''
 
+  def document_bulk_insert(self):
+      '''
+      :param:
+      :return:
+      '''
+      if len(self._es_action) > 0:
+          self.bulk_insert(es_client= self._es_client)
+      else:
+          print("적재할 데이터가 없습니다.")
 
 if __name__ == "__main__":
-  o = GSVoll()
+  o = GSVoll(deploy="local")
   o.get_url()
   o.player_detail_information()
+  o.document_bulk_insert()

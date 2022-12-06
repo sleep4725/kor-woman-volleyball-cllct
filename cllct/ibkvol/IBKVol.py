@@ -28,9 +28,10 @@ class IBKVol(Template, EsCommon):
     EsCommon.__init__(self)
 
     self._flag: str = "ibk"
+    self._team_name: str = "IBK기업은행"
     self._base_url: str = "http://sports.ibk.co.kr/m/volleyball/team/"
     self._base_url_path: str = "player.php"
-    self._player_url_list: list[str] = list() 
+    self._player_url_list: list[dict] = list()
     self._ibk_photo_path: str = os.path.join(PROJ_ROOT_DIR, f"img/{self._flag}")
     self._char_delimiters = "년", "월", "일"
     self._regex_pattern = "|".join(map(re.escape, self._char_delimiters))
@@ -60,7 +61,8 @@ class IBKVol(Template, EsCommon):
             
           player_info = asdict(
             PlayerTemplate(
-              player_name= player_name, 
+              player_name= player_name,
+              player_team_name=self._team_name,
               player_number= player_number,
               player_position= player_position,
               player_detail_url= player_detail_url,

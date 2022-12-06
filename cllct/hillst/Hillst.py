@@ -9,9 +9,11 @@ import urllib.request
 from urllib import parse
 from bs4 import BeautifulSoup
 import bs4
+from elasticsearch import Elasticsearch
 from dataclasses import asdict
 try:
 
+  from es.EsClient import EsClient
   from common.EsCommon import EsCommon
   from skeleton.Template import Template
   from skeleton.PlayerTemplete import PlayerTemplate
@@ -25,11 +27,13 @@ except ImportError as err:
 '''
 class Hilst(Template, EsCommon):
 
-  def __init__(self) -> None:
+  def __init__(self, deploy: str) -> None:
     global PROJ_ROOT_DIR 
     EsCommon.__init__(self)
+    self._es_client: Elasticsearch = EsClient.get_es_client(deploy=deploy)
 
     self._flag: str = "hil"
+    self._team_name: str = "현대건설배구단"
     self._base_url: str = "https://hillstate.hdec.kr"
     self._url_path: str = "/Contents_Player/Player"
     self._player_url_list: list[str] = list() 
@@ -92,11 +96,12 @@ class Hilst(Template, EsCommon):
         
         player_info = asdict(
             PlayerTemplate(
-              player_name= "", 
+              player_name= "",
+              player_team_name= self._team_name,
               player_number= 0,
               player_position= "",
               player_detail_url= None,
-              player_height= 0,
+              player_height= .0,
               player_birthday= {
                 "year": None
                 ,"month": None
@@ -170,7 +175,7 @@ class Hilst(Template, EsCommon):
             tit:str = str(l.select_one("p.tit").text)
             
             if tit == "생년월일":
-              v = str(l.select_one("p.cont").text).replace(" ", "")
+              v:str = str(l.select_one("p.cont").text).replace(" ", "")
               player_birthday: list[str] = [e for e in re.split(self._regex_pattern, v) if e]
               player_info["player_birthday"]["year"] = int(player_birthday[0])
               player_info["player_birthday"]["month"] = int(str(player_birthday[1]).lstrip("0"))
@@ -178,7 +183,7 @@ class Hilst(Template, EsCommon):
             
             elif tit == "신장/체중":
               v:list[str] = str(l.select_one("p.cont").text).replace(" ", "").split("/")
-              v = int(str(v[0]).rstrip("cm"))
+              v = float(str(v[0]).rstrip("cm"))
               player_info["player_height"] += v
             
             elif tit == "출신학교":
@@ -209,12 +214,29 @@ class Hilst(Template, EsCommon):
             player_info["player_img_path"] += img_file_path
         
           print(player_info)
-    else: 
+          self._es_action.append(
+            {
+              "_index": self._es_index
+              , "_source": player_info
+            })
+        else:
+          ''''''
+    else:
       ''''''
 
+  def document_bulk_insert(self):
+      '''
+      :param:
+      :return:
+      '''
+      if len(self._es_action) > 0:
+          self.bulk_insert(es_client= self._es_client)
+      else:
+          print("적재할 데이터가 없습니다.")
 
 if __name__ == "__main__":
-  o = Hilst()
+  o = Hilst(deploy="local")
   o.get_url()
   o.player_detail_information()
+  o.document_bulk_insert()
 

@@ -14,11 +14,11 @@ class EsCommon:
     '''
     :param: es_client
     '''
-    if len(self._es_action) > 0:
-      try:
+    try:
 
-        bulk(es_client, self._es_action)
-      except:
-        print("bulk insert fail")
-    else:
+      bulk(client= es_client, actions= self._es_action)
+    except:
       print("bulk insert fail")
+    else:
+      print("bulk insert success")
+
