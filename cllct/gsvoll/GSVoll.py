@@ -226,7 +226,7 @@ class GSVoll(Template, EsCommon):
           img_file_path :str= f"{self._gsvoll_photo_path}/{player_info['player_name']}.png" 
           result :bool= self.download_player_img(img_file_path= img_file_path, player_detail_info= img_tag)
           if result:
-            player_info["player_img_path"] += img_file_path
+            player_info["player_img_path"] += f"{self._img_file_path}/{player_info['player_name']}.png"
           # Image-download-end 
           # ==============================================================================
           print(player_info)
