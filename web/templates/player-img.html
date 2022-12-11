@@ -1,0 +1,43 @@
+<html>
+    <style>
+        table, th, td {
+            border:1px solid black;
+        }
+    </style>
+    <head>
+        <title> {{player_name}} </title>
+    </head>
+    <body>
+        <table>
+            <tr>
+                <th>key</th>
+                <th>value</th>
+            </tr>
+            {% for element in hits_list["hits"] %}
+                {% for k in element["_source"].keys() %}
+                    {% if k == "player_birthday" %}
+                        <tr>
+                            <td>생일.년</td>
+                            <td>{{element["_source"][k]["year"]}}</td>
+                        </tr>
+                        <tr>
+                            <td>생일.월</td>
+                            <td>{{element["_source"][k]["month"]}}</td>
+                        </tr>
+                        <tr>
+                            <td>생일.일</td>
+                            <td>{{element["_source"][k]["day"]}}</td>
+                        </tr>
+                    {% elif k == "player_img_path" %}
+                        <img src={{url_for('static', filename=element["_source"][k])}}>
+                    {% else %}
+                        <tr>
+                            <td> {{k}} </td>
+                            <td> {{element["_source"][k]}} </td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </table>
+    </body>
+</html>

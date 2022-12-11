@@ -5,6 +5,9 @@ PROJ_ROOT_DIR= os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(_
 sys.path.append(PROJ_ROOT_DIR)
 
 import requests 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import urllib.request
 from urllib import parse
 from bs4 import BeautifulSoup
@@ -16,6 +19,7 @@ try:
 
   from es.EsClient import EsClient
   from common.EsCommon import EsCommon
+  from common.EsIndex import EsIndex
   from skeleton.Template import Template
   from skeleton.PlayerTemplete import PlayerTemplate
 except ImportError as err:
@@ -23,6 +27,7 @@ except ImportError as err:
   exit(1)
 
 '''
+GS칼텍스
 @author JunHyeon.Kim
 @date 20221127
 '''
@@ -40,8 +45,9 @@ class GSVoll(Template, EsCommon):
     self._team_name: str = "지에스칼텍스"
     self._base_url: str = "https://www.gsvolleyball.com"
     self._url_path: str = "/team/player"
-    self._player_url_list: list[str] = list() 
-    self._gsvoll_photo_path: str = os.path.join(PROJ_ROOT_DIR, f"img/{self._flag}")
+    self._player_url_list: list[str] = list()
+    self._img_file_path: str = f"img/{self._flag}" 
+    self._gsvoll_photo_path: str = os.path.join(PROJ_ROOT_DIR, f"web/static/{self._img_file_path}")
 
   def get_url(self):
     '''
@@ -62,6 +68,75 @@ class GSVoll(Template, EsCommon):
     else: 
       ''''''
 
+  def get_player_position(self, player_detail_info: bs4.element.Tag)\
+        -> str:
+    '''
+    선수 포지션
+    :param player_detail_info:
+    :return:
+    '''
+    return str(player_detail_info.text).strip()
+
+  def get_player_number(self, player_detail_info: bs4.element.Tag)\
+        -> int:
+    '''
+    선수 백넘버
+    :return:
+    '''
+    return int(str(player_detail_info.text).lstrip("0"))
+
+  def get_player_name(self, player_detail_info: bs4.element.Tag)\
+          -> str:
+    '''
+    선수 이름
+    :return:
+    '''
+    return str(player_detail_info.text).strip()
+
+  def get_player_birthday(self, birthday: str)\
+          -> list[int]:
+    '''
+    선수 생일
+    :return:
+    '''
+    return [
+      int(str(e).lstrip("0").strip()) for e in re.split(self._regex_pattern, birthday) if e
+    ]
+
+  def get_player_school(self, school: str)\
+          -> list[str]:
+    '''
+    :param l:
+    :param result:
+    :return:
+    '''
+    return [str(s).strip() for s in school.split("-") if s]
+
+  def get_player_height(self, height: str) \
+          -> float:
+    '''
+    :param:
+    :return:
+    '''
+    return float(height.rstrip("cm"))
+
+  def download_player_img(self, 
+                          img_file_path: str,
+                          player_detail_info: bs4.element.Tag)\
+          -> bool:
+    '''
+    '''
+    try:
+      
+      urllib.request.urlretrieve(
+        player_detail_info.attrs["src"],
+        img_file_path)
+    except:
+      print(f"img download fail")
+      return False
+    else:
+      return True
+    
   def player_detail_information(self):
     '''
     :param:
@@ -94,8 +169,8 @@ class GSVoll(Template, EsCommon):
 
         if response.status_code == 200:
           bs_object = BeautifulSoup(response.text, "html.parser")
-          player_profile:bs4.element.Tag = bs_object.select_one("div.teamDetailWrap")
-          team_detail_wrap = player_profile
+          player_profile :bs4.element.Tag= bs_object.select_one("div.teamDetailWrap")
+          team_detail_wrap :bs4.element.Tag= player_profile
 
           player_profile = player_profile.select_one("div.tDetailInfo")
           tdi_1 = player_profile.select_one("div > div.tdi_1")
@@ -104,15 +179,21 @@ class GSVoll(Template, EsCommon):
           for d in div_tags:
             dl_tag = d.select_one("dl")
             dt_tag = str(dl_tag.select_one("dt").text).strip()
+            
+            ## 선수 백넘버
             if dt_tag == "number":
-              player_number:int = int(str(dl_tag.select_one("dd.tDetailNumber").text).lstrip("0"))
+              player_number :int= self.get_player_number(player_detail_info= dl_tag.select_one("dd.tDetailNumber"))
               player_info["player_number"] += player_number
+            
+            ## 선수 포지션  
             elif dt_tag == "position":
-              player_position:str = str(dl_tag.select_one("dd.tDetailPosition").text).strip()
+              player_position :str= self.get_player_position(player_detail_info= dl_tag.select_one("dd.tDetailPosition"))
               player_info["player_position"] += player_position
           
           tdi_2 = player_profile.select_one("div > div.tdi_2")
-          player_name = str(tdi_2.select_one("strong").text).strip()
+          
+          ## 선수 이름  
+          player_name :str= self.get_player_name(player_detail_info= tdi_2.select_one("strong"))
           player_info["player_name"] += player_name
 
           tdi_3 = player_profile.select_one("div.tdi_3")
@@ -122,43 +203,37 @@ class GSVoll(Template, EsCommon):
             k = str(dl.select_one("dt").text).strip()
             
             if k == "생년월일":
-              v = str(dl.select_one("dd").text).replace(" ", "")
-              player_birthday: list[str] = [e for e in re.split(self._regex_pattern, v) if e]
-              player_info["player_birthday"]["year"] = int(player_birthday[0])
-              player_info["player_birthday"]["month"] = int(str(player_birthday[1]).lstrip("0"))
-              player_info["player_birthday"]["day"] = int(str(player_birthday[2]).lstrip("0"))
+              birthday_list :list[int]= self.get_player_birthday(birthday= str(dl.select_one("dd").text).replace(" ", ""))
+              player_info["player_birthday"]["year"] = birthday_list[0]
+              player_info["player_birthday"]["month"] = birthday_list[1]
+              player_info["player_birthday"]["day"] = birthday_list[2]
+              
             elif k == "출신교":
-              v = str(dl.select_one("dd").text).replace(" ", "")
-              player_school:list[str] = [sch for sch in v.split("-") if sch]
-              player_info["player_school"].extend(player_school)
+              school_list :list[str]= self.get_player_school(school=str(dl.select_one("dd").text).replace(" ", ""))
+              player_info["player_school"].extend(school_list)
+              
             elif k == "신장":
-              v = float(str(dl.select_one("dd").text).rstrip("cm"))
-              player_info["player_height"] += v
-          
+              player_height: float = self.get_player_height(height= str(dl.select_one("dd").text))
+              player_info["player_height"] += player_height
           # ==============================================================================
+          # Image-download-start
           img_tag = team_detail_wrap.select_one(
             "div.tDetailPhotoWrap.photo1" +\
             " > " +\
             "img"
           )
-
-          img_file_path:str = f"{self._gsvoll_photo_path}/{player_info['player_name']}.png"
-
-          try:
-            
-            urllib.request.urlretrieve(
-              img_tag.attrs["src"],
-              img_file_path)
-          except:
-            print(f"img download fail")
-            pass 
-          else: 
+          
+          img_file_path :str= f"{self._gsvoll_photo_path}/{player_info['player_name']}.png" 
+          result :bool= self.download_player_img(img_file_path= img_file_path, player_detail_info= img_tag)
+          if result:
             player_info["player_img_path"] += img_file_path
+          # Image-download-end 
           # ==============================================================================
           print(player_info)
           self._es_action.append(
             {
-              "_index": self._es_index
+              "_index": EsIndex.KOR_WOM_INDEX
+              , "_id": f"{self._team_name}_{player_info['player_name']}_{player_info['player_number']}"
               , "_source": player_info
             }
           )

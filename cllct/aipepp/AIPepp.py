@@ -5,6 +5,9 @@ PROJ_ROOT_DIR= os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(_
 sys.path.append(PROJ_ROOT_DIR)
 
 import requests 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import urllib.request
 from bs4 import BeautifulSoup
 import bs4
@@ -13,8 +16,10 @@ from dataclasses import asdict
 
 try:
 
+
   from es.EsClient import EsClient
   from common.EsCommon import EsCommon
+  from common.EsIndex import EsIndex
   from skeleton.Template import Template
   from skeleton.PlayerTemplete import PlayerTemplate
 except ImportError as err:
@@ -40,7 +45,8 @@ class AIPepp(Template, EsCommon):
     self._base_url: str = "http://www.aipeppers.kr"
     self._url_path: str = "/team_sub1.php"
     self._player_url_list: list[str] = list() 
-    self._aipepp_photo_path: str = os.path.join(PROJ_ROOT_DIR, f"img/{self._flag}")
+    self._img_file_path: str = f"img/{self._flag}"
+    self._aipepp_photo_path: str = os.path.join(PROJ_ROOT_DIR, f"web/static/{self._img_file_path}")
 
   def get_url(self):
     '''
@@ -210,7 +216,8 @@ class AIPepp(Template, EsCommon):
 
           img_file_path: str = f"{self._aipepp_photo_path}/{player_info['player_name']}.png"
           self.download_player_img(img_file_path=img_file_path, player_detail_info= player_detail_info)
-          player_info["player_img_path"] += img_file_path
+          player_img_file_path = f"{self._img_file_path}/{player_info['player_name']}.png"
+          player_info["player_img_path"] += player_img_file_path
 
           player_detail_info_tag : bs4.element.ResultSet = player_detail_info.select("span")
           for p in player_detail_info_tag[1:]:
@@ -235,7 +242,8 @@ class AIPepp(Template, EsCommon):
           print(player_info)
           self._es_action.append(
             {
-              "_index": self._es_index
+              "_index": EsIndex.KOR_WOM_INDEX
+              ,"_id": f"{self._team_name}_{player_info['player_name']}_{player_info['player_number']}"
               , "_source": player_info
             }
           )

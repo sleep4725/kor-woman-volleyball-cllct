@@ -7,7 +7,6 @@ from elasticsearch import Elasticsearch
 class EsCommon:
 
   def __init__(self) -> None:
-    self._es_index:str = "woman_volley_ball"
     self._es_action:list = list()
 
   def bulk_insert(self, es_client: Elasticsearch):
