@@ -4,7 +4,7 @@ PROJ_ROOT_DIR = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 
 import yaml
 from elasticsearch import Elasticsearch
-
+from elasticsearch.exceptions import ConnectionError
 ## ----------------------
 # @author JunHyeon.Kim
 # @date 20221010
@@ -35,10 +35,15 @@ class EsClient:
                     _es_client: Elasticsearch = Elasticsearch([
                         f"{_schema}://{h}:{_port}" for h in es_conn_config["hosts"]
                     ])
-
-                    print(f"************ {_es_client.cluster.health()}")
-
-                    return _es_client
+                    try:
+                        
+                        response = _es_client.cluster.health()
+                    except ConnectionError as error:
+                        print(error)
+                        exit(1)
+                    else:
+                        print(f"************ {response}")
+                        return _es_client
                 else:
                     return None
         else:
